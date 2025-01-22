@@ -44,13 +44,14 @@ This project is a full-stack social media web application 🌐 that has been dev
 
 ### **Home Page :** 
 ![Screenshot 2024-04-14 193448](https://github.com/user-attachments/assets/23de69ea-387a-40e3-9b77-f618aeb3b784)
-![Screenshot 2024-04-14 193513](https://github.com/user-attachments/assets/acba59c0-ff1c-4a88-9f2b-80356ef616a9)
-![Screenshot 2024-04-14 193540](https://github.com/user-attachments/assets/a8006c83-f5c4-4db8-9831-ec41749ad383)
+
+
 
 
 ### **User Profile Page**  :
+![Screenshot 2024-04-14 193513](https://github.com/user-attachments/assets/acba59c0-ff1c-4a88-9f2b-80356ef616a9)
 
-
+![Screenshot 2024-04-14 193540](https://github.com/user-attachments/assets/a8006c83-f5c4-4db8-9831-ec41749ad383)
 
 #### **What you need to run this application:**
 
