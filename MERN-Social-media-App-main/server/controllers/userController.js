@@ -1,166 +1,162 @@
-import asyncHandler from 'express-async-handler';
+import UserModel from "../Models/userModel.js";
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import mongoose from 'mongoose';
-import User from '../model/userModel.js';
-import { findUserByEmail, getFriends, getUserById } from '../helpers/userHelpers.js';
 
-// create jwt token
-const createToken = (id) => jwt.sign({ id }, process.env.JWT_SECRET, {
-  expiresIn: '30d',
-});
 
-// @desc user registration
-// @route POST /api/register
-export const userRegistration = asyncHandler(async (req, res) => {
-  try {
-    const { email, password } = req.body;
+// get All users
+export const getAllUsers = async (req, res) => {
 
-    // check if user exists
-    const ifUser = await findUserByEmail(email);
+    try {
+        let users = await UserModel.find();
 
-    if (ifUser) {
-      res.status(400);
-      throw new Error('User Already Exists');
+        users = users.map((user) => {
+            const { password, ...otherDetails } = user._doc;
+            return otherDetails;
+        })
+
+        res.status(200).json(users);
+
+    } catch (error) {
+        res.status(500).json(error);
     }
+}
 
-    // hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
 
-    // save to DB
-    const user = new User({
-      ...req.body,
-      password: hashedPassword,
-    });
 
-    await user.save();
+// get a user
+export const getUser = async (req, res) => {
+    const id = req.params.id;
 
-    res.status(201).json(user);
-  } catch (error) {
-    throw new Error(error.message);
-  }
-});
+    try {
 
-// @desc user login
-// @route POST /api/login
-// @access Public
-export const userLogin = asyncHandler(async (req, res) => {
-  try {
-    const { email, password } = req.body;
+        const user = await UserModel.findById(id);
 
-    // check for email
-    const user = await findUserByEmail(email);
-
-    if (!user) {
-      res.status(400);
-      throw new Error('user not found');
+        if (user) {
+            const { password, ...otherDetails } = user._doc
+            res.status(200).json(otherDetails)
+        } else {
+            res.status(404).json("Please, Try again it is invaild user!")
+        }
     }
-
-    // check if user if forbidden by admin
-    if (user.blockStatus) {
-      res.status(403);
-      throw new Error('user is blocked by admin');
+    catch (error) {
+        res.status(500).json(error)
     }
+}
 
-    // authenticate user
-    if (user && (await bcrypt.compare(password, user.password))) {
-      res.status(200).json({ user, token: createToken(user._id) });
+
+//Update a user
+
+export const updateUser = async (req, res) => {
+    const id = req.params.id;
+
+    const { _id, password } = req.body;
+
+    if (id === _id) {
+
+        if (password) {
+            const salt = await bcrypt.genSalt(10);
+            let pass = password.toString();
+            req.body.password = await bcrypt.hash(pass, salt)
+        }
+
+        try {
+            const user = await UserModel.findByIdAndUpdate(id, req.body, { new: true });
+
+            const token = jwt.sign(
+                { email: user.email, id: user._id },
+                process.env.JWT_KEY
+            );
+
+            res.status(200).json({ user, token })
+        } catch (error) {
+            res.status(500).json(error)
+        }
     } else {
-      res.status(401);
-      throw new Error('Invalid login credentials');
+        res.status(403).json("Access Denied! You can only update your own profile")
     }
-  } catch (error) {
-    throw new Error(error.message);
-  }
-});
+}
 
-// @desc get the user
-// @route GET /api/users/:id
-// @access Private
-export const getUser = asyncHandler(async (req, res) => {
-  try {
-    // check if id is valid
-    if (!mongoose.isValidObjectId(req.params.id)) {
-      res.status(400);
-      throw new Error('Invalid objectId');
-    }
 
-    // get user by id
-    const user = await getUserById(req.params.id);
-    res.status(200).json(user);
-  } catch (error) {
-    throw new Error(error.message);
-  }
-});
 
-// @desc get user friends
-// @route GET /api/users/:id/friends
-// @access Private
-export const getUserFriends = asyncHandler(async (req, res) => {
-  try {
-    // get the user with id
-    const user = await getUserById(req.params.id);
+// Delete a User
 
-    // get friends from user
-    const friends = await getFriends(user);
-    const formattedFriends = friends.map(
-      ({
-        _id, firstName, lastName, occupation, location, picturePath,
-      }) => ({
-        _id,
-        firstName,
-        lastName,
-        occupation,
-        location,
-        picturePath,
-      }),
-    );
-    res.status(200).json(formattedFriends);
-  } catch (error) {
-    throw new Error(error.message);
-  }
-});
+export const deleteUser = async (req, res) => {
+    const id = req.params.id;
 
-// @desc add or remove friend
-// @route POST /api/:id/:friendId
-// @access Private
-export const addOrRemoveFriend = asyncHandler(async (req, res) => {
-  const { userId, friendId } = req.params;
+    const { _id, currentUserAdminStatus } = req.body;
 
-  try {
-    // get user and friend from id
-    const user = await getUserById(userId);
-    const friend = await getUserById(friendId);
-
-    if (user.friends.includes(friendId)) {
-      user.friends = user.friends.filter((id) => id !== friendId);
-      friend.friends = friend.friends.filter((id) => id !== userId);
+    if (_id === id || currentUserAdminStatus) {
+        try {
+            await UserModel.findByIdAndDelete(id);
+            res.status(200).json("User deleted successfully")
+        } catch (error) {
+            res.status(500).json(error)
+        }
     } else {
-      user.friends.push(friendId);
-      friend.friends.push(userId);
+        res.status(403).json("Access Denied! You can only update your own profile")
     }
+}
 
-    await user.save();
-    await friend.save();
 
-    // get updated friends list
-    const updatedFriends = await getFriends(user);
-    const formattedFriends = updatedFriends.map(
-      ({
-        _id, firstName, lastName, picturePath, occupation, location,
-      }) => ({
-        _id,
-        firstName,
-        lastName,
-        picturePath,
-        occupation,
-        location,
-      }),
-    );
 
-    res.status(200).json(formattedFriends);
-  } catch (error) {
-    throw new Error(error.message);
-  }
-});
+// Follow a User
+
+export const followUser = async (req, res) => {
+    const id = req.params.id;
+
+    const { _id } = req.body;
+
+    if (_id === id) {
+        res.status(403).json("Action forbidden")
+    } else {
+        try {
+
+            const followUser = await UserModel.findById(id);
+            const followingUser = await UserModel.findById(_id);
+
+            if (!followUser.followers.includes(_id)) {
+                await followUser.updateOne({ $push: { followers: _id } })
+                await followingUser.updateOne({ $push: { following: id } })
+
+                res.status(200).json("User Followed!")
+            } else {
+                res.status(403).json("User is Already followed by you")
+            }
+
+        } catch (error) {
+            res.status(500).json(error)
+        }
+    }
+}
+
+
+
+// UnFollow a User
+
+export const UnFollowUser = async (req, res) => {
+    const id = req.params.id;
+
+    const { _id } = req.body;
+
+    if (_id === id) {
+        res.status(403).json("Action forbidden")
+    } else {
+        try {
+
+            const followUser = await UserModel.findById(id);
+            const followingUser = await UserModel.findById(_id);
+
+            if (followUser.followers.includes(_id)) {
+                await followUser.updateOne({ $pull: { followers: _id } })
+                await followingUser.updateOne({ $pull: { following: id } })
+
+                res.status(200).json("User Unfollowed!")
+            } else {
+                res.status(403).json("User is not followed by you")
+            }
+
+        } catch (error) {
+            res.status(500).json(error)
+        }
+    }
+}

@@ -1,30 +1,27 @@
-import asyncHandler from 'express-async-handler';
 import jwt from 'jsonwebtoken';
-import User from '../model/userModel.js';
+import dotenv from 'dotenv';
 
-const userAuth = asyncHandler(async (req, res, next) => {
-  let token;
-  try {
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-      // extract token from bearer token
-      [, token] = req.headers.authorization.split(' ');
+dotenv.config();
 
-      // verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+const secret = process.env.JWT_KEY;
 
-      // get user from token
-      req.user = await User.findById(decoded.id).select('-password');
+const authMiddleWare = async (req, res, next) => {
+    try {
 
-      next();
+        const token = req.headers.authorization.split(" ")[1];
+        console.log(token);
+        if (token) {
+            const decoded = jwt.verify(token, secret);
+            console.log(decoded);
+
+            req.body._id = decoded?.id;
+        }
+
+        next();
+    } catch (error) {
+        console.log(error);
     }
-  } catch (error) {
-    res.status(401);
-    throw new Error(error.message);
-  }
-  if (!token) {
-    res.status(401);
-    throw new Error('Not authorized, No token');
-  }
-});
+}
 
-export default userAuth;
+
+export default authMiddleWare;

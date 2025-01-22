@@ -1,63 +1,42 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
-const userSchema = new mongoose.Schema(
-  {
-    firstName: {
-      type: String,
-      required: true,
-      min: 2,
-      max: 50,
+const UserSchema = mongoose.Schema(
+    {
+        email: {
+            type: String,
+            required: true,
+            unique: true
+        },
+        password: {
+            type: String,
+            required: true
+        },
+        firstname: {
+            type: String,
+            required: true
+        },
+        lastname: {
+            type: String,
+            required: true
+        },
+        isAdmin: {
+            type: Boolean,
+            default: false
+        },
+        profilePicture: String,
+        coverPicture: String,
+        about: String,
+        livesin: String,
+        worksAt: String,
+        country: String,
+        relationship: String,
+        followers: [],
+        following: []
     },
-    lastName: {
-      type: String,
-      required: true,
-      min: 2,
-      max: 50,
-    },
-    friends: {
-      type: Array,
-      required: true,
-      default: [],
-    },
-    email: {
-      type: String,
-      required: true,
-      max: 50,
-      unique: true,
-    },
-    password: {
-      type: String,
-      required: true,
-    },
-    blockStatus: {
-      type: Boolean,
-      required: false,
-      default: false,
-    },
-    picturePath: {
-      type: String,
-      required: false,
-    },
-    location: {
-      type: String,
-      required: false,
-    },
-    occupation: {
-      type: String,
-      required: false,
-    },
-    viewedProfile: {
-      type: Number,
-      required: false,
-    },
-    impressions: {
-      type: Number,
-      required: false,
-    },
-  },
-  { timestamps: true },
-);
+    { timestamps: true }
+)
 
-const User = mongoose.model('User', userSchema);
 
-export default User;
+const UserModel = mongoose.model("Users", UserSchema);
+
+export default UserModel
